@@ -46,15 +46,6 @@ class Component {
 
     this.__renderSubscribers = [];
     
-    if (props.__sync) {
-      // Prevent asynchronous render.
-      if (!this.render) {
-        console.error('Synchronous rendering requires a render function.');  
-      }
-      
-      return this;
-    }
-    
     if (this.render) {
       // let other things in constructor get executed
       window.setTimeout(() => {
@@ -65,8 +56,6 @@ class Component {
         
         if (html instanceof Node) {
           $el = html;
-        } else if (html instanceof VNode) {
-          $el = Component.parseVNode(html);
         } else {
           $el = createNode(html);
         }
@@ -78,19 +67,6 @@ class Component {
         return this.ready && this.ready();
       });
     }
-  }
-  
-  onEl($el) {
-    
-    Object.defineProperty(this, "$el", {value: $el});
-    Object.defineProperty(this, "rendered", {value: true});
-    this.__renderSubscribers.forEach(fn => fn());
-    delete this.__renderSubscribers;
-    
-    Object.defineProperty(this, "mounted", {value: true});
-    this.componentDidMount && this.componentDidMount();
-    
-    return this.ready && this.ready();
   }
 
   onRender (fn) {
@@ -214,92 +190,23 @@ class Component {
     });
   }
   
-  static render(_Component, props, container, parentComponent) {
-    
-    props.__sync = true;
-    const component = new _Component(props, container);
-    const vNode = component.render();
-    const DOMNode = Component.parseVNode(vNode, component);
+  static createElement (nodeType, props, ...children) {
 
-    if (parentComponent && parentComponent.context) {
-      component.context = parentComponent.context;
+    const {ref, ...otherProps} = props;
+
+    if (isFunction(nodeType)) {
+    
+      return new nodeType(otherProps);
     }
 
-    if (isObject(props) && props.hasOwnProperty('ref')) {
-      parentComponent[props.ref] = component;
-    }
+    const node = document.createElement(nodeType);
 
-    if (container) {
-      container.appendChild(DOMNode);
-    }
-
-    component.onEl(DOMNode);
-
-    return component;
-  }
-  
-  static parseVNode(vNode, parentComponent) {
-    
-    if (!(vNode instanceof VNode)) {
-      console.error(vNode, 'is not an instance of vNode.');
-    }
-    
-    const { nodeType, props, children } = vNode;
-    
-    const childNodes = [];
-    
     if (isArray(children)) {
-      children.forEach(function processChild(child) {
-        if (child instanceof VNode) {
-          childNodes.push(Component.parseVNode(child, parentComponent)); 
-        } else if (isText(child)) {
-          childNodes.push(document.createTextNode(child));
-        } else if (isArray(child)) {
-          child.forEach(processChild);
-        } else {
-          console.error(child, 'has an unknown child type.');
-        }
-      });
-    }
     
-    if (isString(nodeType)) {
-      const DOMNode = document.createElement(nodeType);
-      
-      if (isObject(props)) {
-        if (props.className) {
-          DOMNode.className = props.className;
-          delete props.className;
-        }
-        if (props.hasOwnProperty('ref')) {
-          parentComponent[props.ref] = DOMNode;
-          delete props.ref;
-        }
-        Object.keys(props).forEach(k => DOMNode.setAttribute(k, props[k]));
-      }
-      
-      if (childNodes) {
-        childNodes.forEach(child => DOMNode.appendChild(child));
-      }
-      
-      return DOMNode;
-      
-    } else if (isFunction(nodeType) && nodeType.constructor === Component.constructor) {
-      return Component.render(nodeType, props, null, parentComponent).$el;
-    } else {
-      console.error(nodeType, 'is an unknown type.');
+      children.forEach(child => Component.mount(child, node));
     }
-  }
-  
-  static createElement (nodeType, props, children) {
-    return new VNode(nodeType, props, children);
-  }
-}
 
-class VNode {
-  constructor(nodeType, props, children) {
-    this.nodeType = nodeType;
-    this.props = props;
-    this.children = children;
+    return node;
   }
 }
 

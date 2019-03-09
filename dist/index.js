@@ -117,11 +117,7 @@ var isType = function isType(type) {
   };
 };
 var isString = isType("string");
-var isNumber = isType("number");
 var isFunction = isType("function");
-var isText = function isText(input) {
-  return isString(input) || isNumber(input);
-};
 var isElement = function isElement(input) {
   return input instanceof Element;
 };
@@ -142,22 +138,7 @@ function createNode(htmlString) {
 
 function deepFreeze(object) {
 
-  var propNames = Object.getOwnPropertyNames(object);
-
-  for (var key in propNames) {
-
-    var name = propNames[key];
-    var value = object[name];
-
-    try {
-
-      object[name] = value;
-    } catch (e) {/* the prop is not writable */}
-
-    value && (typeof value === "undefined" ? "undefined" : _typeof(value)) === "object" ? deepFreeze(value) : value;
-  }
-
-  return Object.freeze(object);
+  return Object.freeze(Object.create(object));
 }
 
 var Component = function () {
@@ -198,15 +179,6 @@ var Component = function () {
 
     this.__renderSubscribers = [];
 
-    if (props.__sync) {
-      // Prevent asynchronous render.
-      if (!this.render) {
-        console.error('Synchronous rendering requires a render function.');
-      }
-
-      return this;
-    }
-
     if (this.render) {
       // let other things in constructor get executed
       window.setTimeout(function () {
@@ -217,8 +189,6 @@ var Component = function () {
 
         if (html instanceof Node) {
           $el = html;
-        } else if (html instanceof VNode) {
-          $el = Component.parseVNode(html);
         } else {
           $el = createNode(html);
         }
@@ -235,22 +205,6 @@ var Component = function () {
   }
 
   createClass(Component, [{
-    key: 'onEl',
-    value: function onEl($el) {
-
-      Object.defineProperty(this, "$el", { value: $el });
-      Object.defineProperty(this, "rendered", { value: true });
-      this.__renderSubscribers.forEach(function (fn) {
-        return fn();
-      });
-      delete this.__renderSubscribers;
-
-      Object.defineProperty(this, "mounted", { value: true });
-      this.componentDidMount && this.componentDidMount();
-
-      return this.ready && this.ready();
-    }
-  }, {
     key: 'onRender',
     value: function onRender(fn) {
 
@@ -380,105 +334,32 @@ var Component = function () {
       });
     }
   }, {
-    key: 'render',
-    value: function render(_Component, props, container, parentComponent) {
+    key: 'createElement',
+    value: function createElement(nodeType, props) {
 
-      props.__sync = true;
-      var component = new _Component(props, container);
-      var vNode = component.render();
-      var DOMNode = Component.parseVNode(vNode, component);
+      if (isFunction(nodeType)) {
 
-      if (parentComponent && parentComponent.context) {
-        component.context = parentComponent.context;
+        return new nodeType(props);
       }
 
-      if (isObject(props) && props.hasOwnProperty('ref')) {
-        parentComponent[props.ref] = component;
+      var node = document.createElement(nodeType);
+
+      for (var _len = arguments.length, children = Array(_len > 2 ? _len - 2 : 0), _key = 2; _key < _len; _key++) {
+        children[_key - 2] = arguments[_key];
       }
-
-      if (container) {
-        container.appendChild(DOMNode);
-      }
-
-      component.onEl(DOMNode);
-
-      return component;
-    }
-  }, {
-    key: 'parseVNode',
-    value: function parseVNode(vNode, parentComponent) {
-
-      if (!(vNode instanceof VNode)) {
-        console.error(vNode, 'is not an instance of vNode.');
-      }
-
-      var nodeType = vNode.nodeType,
-          props = vNode.props,
-          children = vNode.children;
-
-
-      var childNodes = [];
 
       if (isArray(children)) {
-        children.forEach(function processChild(child) {
-          if (child instanceof VNode) {
-            childNodes.push(Component.parseVNode(child, parentComponent));
-          } else if (isText(child)) {
-            childNodes.push(document.createTextNode(child));
-          } else if (isArray(child)) {
-            child.forEach(processChild);
-          } else {
-            console.error(child, 'has an unknown child type.');
-          }
+
+        children.forEach(function (child) {
+          return Component.mount(child, node);
         });
       }
 
-      if (isString(nodeType)) {
-        var DOMNode = document.createElement(nodeType);
-
-        if (isObject(props)) {
-          if (props.className) {
-            DOMNode.className = props.className;
-            delete props.className;
-          }
-          if (props.hasOwnProperty('ref')) {
-            parentComponent[props.ref] = DOMNode;
-            delete props.ref;
-          }
-          Object.keys(props).forEach(function (k) {
-            return DOMNode.setAttribute(k, props[k]);
-          });
-        }
-
-        if (childNodes) {
-          childNodes.forEach(function (child) {
-            return DOMNode.appendChild(child);
-          });
-        }
-
-        return DOMNode;
-      } else if (isFunction(nodeType) && nodeType.constructor === Component.constructor) {
-        return Component.render(nodeType, props, null, parentComponent).$el;
-      } else {
-        console.error(nodeType, 'is an unknown type.');
-      }
-    }
-  }, {
-    key: 'createElement',
-    value: function createElement(nodeType, props, children) {
-      return new VNode(nodeType, props, children);
+      return node;
     }
   }]);
   return Component;
 }();
-
-var VNode = function VNode(nodeType, props, children) {
-  classCallCheck(this, VNode);
-
-  this.nodeType = nodeType;
-  this.props = props;
-  this.children = children;
-};
 
 var getEvent = function getEvent() {
 

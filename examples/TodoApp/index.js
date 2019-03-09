@@ -117,6 +117,6 @@ class TodoApp extends PublisherComponent {
   }
 }
 
-const todoApp = Component.render(TodoApp, {}, document.body);
+const todoApp = Component.mount(<TodoApp/>, document.body);
 
 

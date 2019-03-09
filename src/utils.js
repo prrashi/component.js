@@ -22,20 +22,5 @@ export function createTextNode (text) {
 
 export function deepFreeze(object) {
 
-  var propNames = Object.getOwnPropertyNames(object);
-
-  for (let key in propNames) {
-    
-    const name = propNames[key];
-    let value = object[name];
-
-    try {
-
-      object[name] = value
-    } catch (e) { /* the prop is not writable */}
-          
-    value && typeof value === "object" ? deepFreeze(value) : value;
-  }
-
-  return Object.freeze(object);
+  return Object.freeze(Object.create(object));
 }
