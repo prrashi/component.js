@@ -6,12 +6,16 @@ import {
   isArray,
   isElement,
   isDefined,
-  isObject
+  isObject,
+  isNode,
+  isFunction,
+  isComponent,
+  mount
 } from "./utils";
 
 class Component {
 
-  constructor (props, container) {
+  constructor (props) {
  
     const context={};
 
@@ -37,12 +41,17 @@ class Component {
         Object.assign(this, context);
       } 
     });
+
+    const {ref, ...otherProps} = props;
  
-    Object.defineProperty(this, "props", {value: deepFreeze(props || {})});
+    Object.defineProperty(
+      this, "props",
+      {value: deepFreeze(otherProps || {})}
+    );
 
     this.__renderSubscribers = [];
 
-    if (this.render) {
+    if (isFunction(this.render)) {
    
       // let other things in constructor get executed
       window.setTimeout(() => {
@@ -52,23 +61,49 @@ class Component {
         if (this.render) {
 
           const html = this.render(props),
-                node = html instanceof Node
-                         ? html
-                         : (this.parser || createNode)(html);
+                isHTMLString = isString(html);
 
-          $el = node;
+          if (!isDefined(html)) {
+
+            throw new Error("render function did not return anything");
+          } else if (isNode(html) || isHTMLString) {
+
+            if (isHTMLString) {
+
+              $el = createNode(html);
+            }
+
+            $el = html;
+
+            Object.defineProperty(this, "$el", {value: $el});
+          } else if (isComponent) {
+
+            if (this.componentDidMount) {
+
+              component.__onRender(this.componentDidMount);
+            }
+
+            this.appendChild(component).then(($elements) => {
+
+              return !this.rendered && this.__publishRender($elements);
+            });
+          }
         }
-
-        Object.defineProperty(this, "$el", {value: $el});
-        Object.defineProperty(this, "rendered", {value: true});
-        this.__renderSubscribers.forEach((fn) => fn());
-        delete this.__renderSubscribers;
-        return this.ready && this.ready();
       });
+    } else {
+
+      throw new Error("render method not specified");
     }
   }
 
-  onRender (fn) {
+  __publishRender ($el) {
+
+    Object.defineProperty(this, "rendered", {value: true});
+    this.__renderSubscribers.forEach((fn) => fn($el));
+    delete this.__renderSubscribers;
+  }
+
+  __onRender (fn) {
   
     if (this.rendered) {
     
@@ -81,66 +116,69 @@ class Component {
     return this;
   }
 
-  addEventListener(...args) {
-  
-    if(this.$el) {
-    
-      this.$el.addEventListener(...args);
+  appendChild(child) {
+
+    if (this.rendered) {
+
+      return;
     }
-
-    return this;
-  }
-
-  removeEventListener(...args) {
-  
-    if (this.$el) {
-    
-      this.$el.removeEventListener(...args);
-    }
-
-    return this;
-  }
-
-  appendChild(child, $el) {
 
     if (isArray(child) && child.length > 0) {
 
-      child.forEach((child) => this.appendChild(child, $el));
-      return this;
+      return new Promise.all(
+        child.map((child) => this.appendChild(child, $el))
+      ).then(($elements) => {
+
+        if (this.$el) {
+
+          return $el;
+        }
+
+        return $elements;
+      });
     }
 
     if (!Component.isComponent(child)) {
+
+      if (!child) {
+
+        return Promise.resolve(this.$el || child);
+      }
     
-      return this;
+      child = document.createTextFragment(String(child));
+
+      let retVal = child;
+
+      if (this.$el) {
+
+        this.$el.appendChild(retVal);
+        retVal = this.$el;
+      }
+
+      return Promise.resolve(retVal);
     }
 
-    return this.onRender(() => {
+    const {context} = this;
 
-      const {context, $el:$parentEl} = this;
+    if (context) {
 
-      if (!isDefined($el)) {
+      child.context = context;
+    }
 
-        $el = $parentEl;
-      } else {
+    return new Promise((res) => {
+ 
+      child.__onRender(($child) => {
 
-        $el = isElement($el)
-                ? $el
-                : isString($el)
-                    ? this.$($el)
-                    : null;
+        let retVal = $child;
 
-		if (!$el) {
+        if (this.$el) {
 
-		  return;
-		}
-      }
+          this.$el.appendChild($child);
+          retVal = this.$el;
+        }
 
-      if (context) {
-
-        child.context = context;
-      }
-
-      return Component.mount(child, $el);
+        res(retVal);
+      });
     });
   }
 
@@ -157,37 +195,8 @@ class Component {
            $container.removeChild(this.$el);
   }
 
-  $(selector) {
-  
-    return this.$el && this.$el.querySelector(selector) || null; 
-  }
-
-  $$(selector) {
-  
-    return this.$el && this.$el.querySelectorAll(selector) || null;
-  }
-
-  static isComponent (input) {
-
-    return input instanceof Component;
-  }
-
-  static mount (component, target) {
-
-    if (!isElement(target) ||
-        !Component.isComponent(component) ||
-        component.mounted) {
-    
-      return;
-    }
-
-    return component.onRender(() => {
-
-      target.appendChild(component.$el);
-      Object.defineProperty(component, "mounted", {value: true});
-      return component.componentDidMount && component.componentDidMount();
-    });
-  }
+  static isComponent = isComponent;
+  static mount = mount;
 }
 
 export default Component;
