@@ -1,7 +1,7 @@
 import babel from 'rollup-plugin-babel';
 import resolve from 'rollup-plugin-node-resolve';
 
-export default {
+export default [{
   input: 'src/index.js',
   output: {
     file: 'dist/index.js',
@@ -14,4 +14,17 @@ export default {
       plugins: ['external-helpers']
     })
   ]
-};
+},  {
+  input: 'src/index.js',
+  output: {
+    file: 'dist/es/index.js',
+    format: 'es'
+  },
+  plugins: [
+    resolve(),
+    babel({
+      exclude: 'node_modules/**', // only transpile our source code
+      plugins: ['external-helpers']
+    })
+  ]
+}];
