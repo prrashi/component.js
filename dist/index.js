@@ -136,46 +136,6 @@ function createNode(htmlString) {
   return node.firstChild;
 }
 
-function deepFreeze(object) {
-
-  var propNames = Object.getOwnPropertyNames(object);
-
-  var _iteratorNormalCompletion = true;
-  var _didIteratorError = false;
-  var _iteratorError = undefined;
-
-  try {
-    for (var _iterator = propNames[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true) {
-      var name = _step.value;
-
-
-      var value = object[name];
-
-      try {
-
-        object[name] = value;
-      } catch (e) {/* the prop is not writable */}
-
-      value && (typeof value === "undefined" ? "undefined" : _typeof(value)) === "object" ? deepFreeze(value) : value;
-    }
-  } catch (err) {
-    _didIteratorError = true;
-    _iteratorError = err;
-  } finally {
-    try {
-      if (!_iteratorNormalCompletion && _iterator.return) {
-        _iterator.return();
-      }
-    } finally {
-      if (_didIteratorError) {
-        throw _iteratorError;
-      }
-    }
-  }
-
-  return Object.freeze(object);
-}
-
 var Component = function () {
   function Component(props, container) {
     var _this = this;
@@ -208,7 +168,7 @@ var Component = function () {
       }
     });
 
-    Object.defineProperty(this, "props", { value: deepFreeze(props || {}) });
+    Object.defineProperty(this, "props", { value: Object.freeze(props || {}) });
 
     this.__renderSubscribers = [];
 
