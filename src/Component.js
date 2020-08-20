@@ -1,7 +1,6 @@
 import "./polyfills";
 import {
   createNode,
-  deepFreeze,
   isString,
   isArray,
   isElement,
@@ -38,7 +37,7 @@ class Component {
       } 
     });
  
-    Object.defineProperty(this, "props", {value: deepFreeze(props || {})});
+    Object.defineProperty(this, "props", {value: Object.freeze(props || {})});
 
     this.__renderSubscribers = [];
 
