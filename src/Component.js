@@ -187,6 +187,25 @@ class Component {
       return component.componentDidMount && component.componentDidMount();
     });
   }
+
+  static onRender (component) {
+
+    if (!Component.isComponent(component)) {
+
+      return Promise.resolve(null);
+    }
+
+    return new Promise((resolve, reject) => {
+
+      try {
+
+        component.onRender(() => resolve(component));
+      } catch (e) {
+
+        reject(e);
+      }
+    });
+  }
 }
 
 export default Component;
