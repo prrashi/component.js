@@ -1,23 +1,13 @@
 const path = require('path');
 
 const ExtractCSSPlugin = require("mini-css-extract-plugin");
-const OptimizeCSSAssetsPlugin = require("optimize-css-assets-webpack-plugin");
+const CssMinimizerPlugin = require("css-minimizer-webpack-plugin");
 
 const extractStyles = new ExtractCSSPlugin({
   filename: "styles.css"
 });
 
 const dir = path.resolve(__dirname, "./TodoApp");
-
-const stats = {
-  assets: false,
-  children: false,
-  version: false,
-  hash: false,
-  timings: false,
-  chunks: false,
-  chunkModules: false,
-};
 
 module.exports = {
   mode: 'development',
@@ -45,14 +35,12 @@ module.exports = {
       } 
     ]
   },
-  devServer: {
-    stats,
-  },
   devtool: "cheap-module-source-map",
   plugins: [extractStyles],
   optimization: {
     minimizer:[
-      new OptimizeCSSAssetsPlugin({})
+      "...",
+      new CssMinimizerPlugin({})
     ]
   },
   resolve: {
